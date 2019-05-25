@@ -14,9 +14,9 @@ BIRD_X = 80
 PADDING = 5
 
 # Sprites used
-BG_SPRITE = "sprites/bg_basic.jpg"
-FLOOR_SPRITE = "sprites/floor_basic.jpg"
-PIPE_SPRITE = "sprites/pipe_basic.jpg"
+BG_SPRITE = "sprites/bg_fb.jpg"
+FLOOR_SPRITE = "sprites/floor_fb.jpg"
+PIPE_SPRITE = "sprites/pipe_fb.jpg"
 
 class Environment:
     '''
@@ -28,18 +28,22 @@ class Environment:
     
     '''
 
-    def __init__(self, isHuman=True):
+    def __init__(self, isHuman=True, bird=None):
         super(Environment).__init__()
         self.isHuman = isHuman
-
+        self.bird = bird
+        
+        if bird is not None:
+            self.bird.x = BIRD_X
+        
         # load and reshape all the sprites
-        self.bg_img = cv2.resize(cv2.imread(BG_SPRITE), dsize=(WINDOW_SIZE[1], WINDOW_SIZE[0]-GROUND_HEIGHT), interpolation=cv2.INTER_CUBIC)
-        self.floor_img = cv2.resize(cv2.imread(FLOOR_SPRITE), dsize=(WINDOW_SIZE[1], GROUND_HEIGHT), interpolation=cv2.INTER_CUBIC)
-        self.pipe_img = cv2.resize(cv2.imread(PIPE_SPRITE), dsize=(PIPE_WIDTH, WINDOW_SIZE[0]), interpolation=cv2.INTER_CUBIC)
+        self.bg_img = np.flip(cv2.resize(cv2.imread(BG_SPRITE), dsize=(WINDOW_SIZE[1], WINDOW_SIZE[0]-GROUND_HEIGHT), interpolation=cv2.INTER_CUBIC), axis=-1)
+        self.floor_img = np.flip(cv2.resize(cv2.imread(FLOOR_SPRITE), dsize=(WINDOW_SIZE[1], GROUND_HEIGHT), interpolation=cv2.INTER_CUBIC), axis=-1)
+        self.pipe_img = np.flip(cv2.resize(cv2.imread(PIPE_SPRITE), dsize=(PIPE_WIDTH, WINDOW_SIZE[0]), interpolation=cv2.INTER_CUBIC), axis=-1)
         
         # rotated version of the pipe
         rows, cols = self.pipe_img.shape[0:2]
-        self.pipe_img_rot = cv2.warpAffine(self.pipe_img, cv2.getRotationMatrix2D((cols/2,rows/2),90,1), (cols,rows))
+        self.pipe_img_rot = cv2.warpAffine(self.pipe_img, cv2.getRotationMatrix2D((cols/2,rows/2),180,1), (cols,rows))
         
         self.pipes = []
         n_pipes = WINDOW_SIZE[1]//(PIPE_WIDTH + PIPE_H_DIST) + 2
@@ -50,13 +54,13 @@ class Environment:
         
         self.build_env()
     
-    def build_env(self, bird=None):
-        env = np.zeros((WINDOW_SIZE[0], WINDOW_SIZE[1], 3))
+    def build_env(self):
+        map = np.zeros((WINDOW_SIZE[0], WINDOW_SIZE[1], 3), dtype=int)
         occ = np.zeros((WINDOW_SIZE[0], WINDOW_SIZE[1]), dtype=int)
 
-        env[:WINDOW_SIZE[0]-GROUND_HEIGHT, :, :] = self.bg_img
+        map[:WINDOW_SIZE[0]-GROUND_HEIGHT, :, :] = self.bg_img
         
-        env[WINDOW_SIZE[0]-GROUND_HEIGHT:, :, :] = self.floor_img
+        map[WINDOW_SIZE[0]-GROUND_HEIGHT:, :, :] = self.floor_img
         occ[WINDOW_SIZE[0]-GROUND_HEIGHT:, :] = 1
         
         for pipe in self.pipes:
@@ -68,26 +72,27 @@ class Environment:
                 x = max(x,0)
                 
                 bottom_pipe_img = cv2.resize(self.pipe_img, dsize=(PIPE_WIDTH, height), interpolation=cv2.INTER_CUBIC)
-                env[y - height:y, x:x + visible_width, :] = bottom_pipe_img[:, :visible_width] 
+                map[y - height:y, x:x + visible_width, :] = bottom_pipe_img[:, :visible_width] 
                 occ[y - height:y, x:x + visible_width] = 1
 
                 
                 height_top = WINDOW_SIZE[0] - GROUND_HEIGHT - height - PIPE_V_DIST
                 top_pipe_img = cv2.resize(self.pipe_img_rot, dsize=(PIPE_WIDTH, height_top), interpolation=cv2.INTER_CUBIC)
-                env[:height_top, x:x + visible_width, :] = top_pipe_img[:, :visible_width] 
+                map[:height_top, x:x + visible_width, :] = top_pipe_img[:, :visible_width] 
                 occ[:height_top, x:x + visible_width] = 1
             else:
                 break
         
-        if bird is not None:
-            rows, cols = bird.img.shape
-            y = bird.y
-            x_b, y_b = BIRD_X - cols//2, y - cols//2
-            env[x_b:x_b + cols, y_b:y_b + rows] = bird.img
+        self.map = np.zeros((WINDOW_SIZE[0] + 2*self.pad, WINDOW_SIZE[1] + 2*self.pad, 3), dtype=int)
+        self.map[self.pad: self.pad + WINDOW_SIZE[0], self.pad: self.pad + WINDOW_SIZE[1], :] = map
         
-        self.env = np.zeros((WINDOW_SIZE[0] + 2*self.pad, WINDOW_SIZE[1] + 2*self.pad, 3))
-        self.env[self.pad: self.pad + WINDOW_SIZE[0], self.pad: self.pad + WINDOW_SIZE[1], :] = env
-        self.occ = np.ones((WINDOW_SIZE[0] + 2*self.pad, WINDOW_SIZE[1] + 2*self.pad), dtype=1)
+        if self.bird is not None:
+            rows, cols, _ = self.bird.img.shape
+            x_b, y_b = self.bird.x + self.pad - cols//2, max(self.bird.y + self.pad - rows//2, 0)
+            display_mask = (self.bird.img[:,:,0] != 0) | (self.bird.img[:,:,1] != 255) | (self.bird.img[:,:,1] != 0)
+            self.map[y_b:y_b + rows, x_b:x_b + cols, :][display_mask] = self.bird.img[display_mask]
+        
+        self.occ = np.ones((WINDOW_SIZE[0] + 2*self.pad, WINDOW_SIZE[1] + 2*self.pad), dtype=int)
         self.occ[self.pad: self.pad + WINDOW_SIZE[0], self.pad: self.pad + WINDOW_SIZE[1]] = occ
             
     def generate_pipe(self):
@@ -104,7 +109,7 @@ class Environment:
         
         return pipe
         
-    def scroll(self, bird=None):
+    def scroll(self):
         n_pipes = len(self.pipes)
         
         self.pipes = [[pipe[0]-1, pipe[1]] for pipe in self.pipes]
@@ -113,7 +118,7 @@ class Environment:
         while len(self.pipes) < n_pipes:
             self.pipes.append(self.generate_pipe())
             
-        self.build_env(bird)
+        self.build_env()
         
     
 if __name__ == '__main__':
@@ -121,7 +126,7 @@ if __name__ == '__main__':
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    im = ax.imshow(environment.env)
+    im = ax.imshow(environment.map)
     plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
     
     def on_click(event):
@@ -129,10 +134,9 @@ if __name__ == '__main__':
 
         for t in range(T):
             print("Frame:", t)
-            #time.sleep(0)
             plt.pause(0.01)
             environment.scroll()
-            im.set_data(environment.env)
+            im.set_data(environment.map)
             plt.draw()
 
 
@@ -140,7 +144,7 @@ if __name__ == '__main__':
     
     plt.show()
     
-    #cv2.imwrite('test.jpg', environment.env)
+    #cv2.imwrite('test.jpg', environment.map)
 
 
     
