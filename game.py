@@ -1,5 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import cv2
+
+from util import *
 from environment import Environment
 from bird import Bird
 
@@ -7,6 +10,7 @@ from bird import Bird
 class Game:
     
     def __init__(self, isHuman=True):
+        self.params = game_parameters()
         self.bird = Bird()
         self.env = Environment(isHuman=isHuman, bird=self.bird)
         self.score = 0
@@ -36,7 +40,8 @@ class Game:
                 if self.fail():
                     print("YOU DIED")
                     self.inGame = False
-                    
+                    self.bird.img = jpg2numpy(self.params["explosion_sprite"], self.params["explosion_dims"])
+
                 self.bird.move()
 
                 self.env.scroll()
