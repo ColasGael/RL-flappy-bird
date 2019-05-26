@@ -1,3 +1,9 @@
+"""Useful functions for the Game.
+
+Authors:
+    Gael Colas
+"""
+
 import numpy as np
 import cv2
 
@@ -10,7 +16,7 @@ def jpg2numpy(im_path, im_dims):
         'im_dims' (tuple: (rows, cols)): dimensions of the output array
     
     Return:
-        'im_array' (np.array, shape=(im_dims,3), dtype=int): corresponding array of RGB-pixels
+        'im_array' (np.array, shape=(im_dims,3)): corresponding array of RGB-pixels
     """
     # read image into numpy array
     im_array = cv2.imread(im_path)
@@ -21,44 +27,21 @@ def jpg2numpy(im_path, im_dims):
     
     return im_array
     
+def green_screen(im_array):
+    """Find which pixels of an input image correspond to an object on a green screen.
     
-def game_parameters():
-    """Return a dictionary gethering all the Game hyperparameters.
+    Args:
+        'im_array' (np.array, shape=(im_dims,3)): RGB-pixels array of input image
     
     Return:
-        params (dict): dictionary gethering all the Game hyperparameters
+        'mask' (np.array, shape=(im_dims), dtype=bool): boolean mask indicating the non-green screen pixels.
     """
-    params = {}
-    # Objects dimensions in pixels
-        # window
-    params["window_size"] = (370, 240) 
-    params["padding"] = 5
-        # environment
-    params["ground_height"] = 64
-    params["pipe_width"] = 40
-    params["pipe_dist"] = (90, 80) # (x,y)-distance
-    params["pipe_min_height"] = 10
-        # bird
-    params["bird_dims"] = (20, 20)  
-    params["bird_pos"] = (80, 150) # (x,y)-position
-        # explosion
-    params["explosion_dims"] = (50, 50)
+    
+    mask = (im_array[:,:,1] < 100) | (im_array[:,:,0] > im_array[:,:,1]) | (im_array[:,:,2] > im_array[:,:,1]) 
+    
+    return mask
+    
+    
 
-    # Dynamics (bird movement) hyperparameters
-    params["v0"] = 0.4
-    params["a0"] = 0.3
-    params["dt"] = 10
-    params["v_max"] = 3
-    params["dv"] = 2
-    
-    # Sprites to use
-    params["bg_sprite"] = "sprites/bg_fb.jpg"
-    params["floor_sprite"] = "sprites/floor_fb.jpg"
-    params["pipe_sprite"] = "sprites/pipe_fb.jpg"
-    params["bird_sprite"] = "sprites/bird_rocket.jpg"
-    params["explosion_sprite"] = "sprites/explosion.jpg"
-    
-    return params
-    
 
 
