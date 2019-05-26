@@ -42,7 +42,7 @@ def green_screen(im_array):
     
     return mask
     
-def display_score_commands(coord, score, commands_filename, ax):
+def display_info(coord, score, commands_filename, ax):
     """Display the commands and the current score
     
     Args:

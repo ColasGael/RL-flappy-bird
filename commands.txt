@@ -1,5 +1,5 @@
 Commands:
-    RIGHT-CLICK : start
+    LEFT-CLICK : start
     SPACE : jump
     N : reset game
     Q : quit

@@ -1,10 +1,10 @@
-import numpy as np
-
 """Define the class used to keep track of the state of the player (the bird).
 
 Authors:
     Gael Colas
 """
+
+import numpy as np
 
 from util import *
 
@@ -20,11 +20,12 @@ class Bird:
         't' (int): number of time steps since the last jump
         'score' (int): current score
 
-    Remark:
+    Remarks:
         'x' is fixed, only the environment moves by scrolling.
     """
     
     def __init__(self, args):
+        super(Bird).__init__()
         self.args = args
 
         self.img = jpg2numpy(self.args.bird_sprite, self.args.bird_dims)

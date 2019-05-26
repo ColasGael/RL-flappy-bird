@@ -12,7 +12,7 @@ from util import *
 from args import get_game_args
 from environment import Environment
 from bird import Bird
-
+from agent import AIAgent
 
 class Game:
     """Class defining the Game framework.
@@ -25,9 +25,11 @@ class Game:
         'score' (int): current score
         'inGame' (bool): indicates if we are currently playing the Game
         'hasJumped' (bool): indicates if an action (jumping) as been made at the current time step
+        'agent' (AIAgent): AI agent playing the game
     """
     
     def __init__(self, args):
+        super(Game).__init__()
         self.args = args
         self.isHuman = (args.agent == "human")
         self.bird = Bird(args)
@@ -36,11 +38,28 @@ class Game:
         self.inGame = False
         self.hasJumped = False
         self.t = 0
-    
+        
+        if not self.isHuman:
+            state = self.env.get_state()
+            self.agent = AIAgent(args, state)
+            
     def reset(self, im, text_score):
         """Reset the environment and the bird position to start a new game.
         """
-        self.__init__(self.args)
+        # reset the simulation
+        self.bird = Bird(args)
+        self.env = Environment(args, bird=self.bird)
+        self.score = 0
+        self.inGame = False
+        self.hasJumped = False
+        self.t = 0
+        
+        # update the state of the agent
+        if not self.isHuman:
+            state = self.env.get_state()
+            self.agent.reset(state)
+        
+        # update the image 
         im.set_data(self.env.map)
         text_score.set_text("SCORE: {}\n".format(self.score))
         plt.draw()
@@ -69,22 +88,36 @@ class Game:
         """Play one time step in the game.
         """
         # update the score
-        if self.update_score():
+        isScoreUpdated = self.update_score()
+        if isScoreUpdated:
             self.score += 1
             # display the new score
             text_score.set_text("SCORE: {}\n".format(self.score))
         
         # the player hit an obstacle
-        if self.fail():
+        isFail = self.fail()
+        if isFail:
             self.inGame = False
             # display an explosion instead of the bird image
             self.bird.img = jpg2numpy(self.args.explosion_sprite, self.args.explosion_dims)
 
+        # if the AI is playing: take an action
+        if not self.isHuman:
+            self.agent.action()     
+            
         # compute the new bird position
         self.bird.move()
+ 
         # scroll 1 frame and generate the new environment
-        self.env.scroll()
-        
+        new_state = self.env.scroll()
+       
+        # if the AI is playing: set the new state
+        if not self.isHuman:
+            # get the new_state
+            new_state = self.env.get_state()
+            # feed the transition information to the agent
+            self.agent.set_state(new_state, isScoreUpdated, isFail) 
+            
         # only display 1 every 2 time frames for fluidity
         if (self.t % 2 == 0) or self.fail():
             # change the displayed image to account for changes
@@ -100,7 +133,7 @@ class Game:
         """Launch a game.
         
         Commands:
-            RIGHT-CLICK : start new game
+            LEFT-CLICK : start new game
             SPACE : jump
             N : reset game
             Q : quit
@@ -112,16 +145,16 @@ class Game:
         # to hide tick values on X and Y axis
         plt.xticks([]), plt.yticks([]) 
         # display the commands and the current score
-        text_score = display_score_commands(self.args.window_size, self.score, self.args.commands_filename, ax)
+        text_score = display_info(self.args.window_size, self.score, self.args.commands_filename, ax)
         
-        # right click mpl event: start the game
+        # left-click mpl event: start the game
         def start_onclick(event):
             self.inGame = True
             
             # while the player does not fail
             while self.inGame:
                 # safe way to pause a plt animation
-                plt.pause(1e-30)
+                plt.pause(1e-3)
                 self.step(im, text_score)
                 
         # keyboard pressed mpl event
@@ -146,8 +179,10 @@ class Game:
         # keyboard input to interact with the game
         cid_jump = fig.canvas.mpl_connect('key_press_event', jump_onkey)
         
-        # disconnect the event 'cid'
-        #fig.canvas.mpl_disconnect(cid)
+        # disconnect the events
+        if False:
+            fig.canvas.mpl_disconnect(cid_start)
+            fig.canvas.mpl_disconnect(cid_jump)
         
         # display the game
         plt.show()

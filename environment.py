@@ -29,7 +29,7 @@ class Environment:
         'occ' (np.array, shape=window_size, dtype=int): occupancy grid = binary matrix indicating the presence of obstacles
                     occ[i,j] = 1 if pixel (i,j) represents an obstacle, 0 otherwise
     
-    Remark:
+    Remarks:
         The object images are resized to the expected size as specified in 'args'.
         A new pipe is generated when the front one leave the screen. The height of the new pipe is randomly generated.
     """
@@ -136,7 +136,7 @@ class Environment:
         Return:
             'pipe' (tuple, (x, height)): generated pipe (x = coord of front of pipe ; height = height of bottom pipe)
         
-        Remark:
+        Remarks:
             If this is the first pipe, the generated pipe is placed at the right border of the window for a human and in the middle of the window for an AI.
             Otherwise, the pipe is placed at 'pipe_dist[0]' horizontal distance from the previous pipe.
         """
@@ -150,14 +150,44 @@ class Environment:
                 pipe = [self.args.window_size[1], height]
             # for an AI: in the middle of the window
             else:
-                pipe = [self.args.window_size[1]//2, height]
+                pipe = [self.args.window_size[1], height]
         
         # place the new pipe at 'pipe_dist[0]' horizontal distance from the previous one
         else:
             pipe = [self.pipes[-1][0] + self.args.pipe_dist[0] + self.args.pipe_width, height]
         
         return pipe
+    
+    def get_state(self):
+        """Return the state of the Bird.
+        The state of the bird is composed of:
+            - 'y': the y-coordinate of the Bird center ;
+            - 'd': the distance between the Bird Center and center of the next pipe's opening ;
+            - 'theta': the angle between the Bird Center and center of the next pipe's opening.
+            
+        Return:
+            'state' (np.array, [y, d, theta]): the state of the Bird)
+        """
+        if self.bird is None:
+            return None
+            
+        # coordinates of the center of the next pipe's opening
+        next_pipe = list(filter(lambda pipe: pipe[0] + self.args.pipe_width//2 >= self.bird.x, self.pipes))[0]
+        x_c = next_pipe[0] + self.args.pipe_width//2
+        y_c = -next_pipe[1] + self.args.window_size[0] - self.args.ground_height - self.args.pipe_dist[1]//2
         
+        # current state
+        y = self.bird.y
+        d = np.sqrt((x_c - self.bird.x)**2 + (y_c - self.bird.y)**2)
+        theta = np.arctan2(self.bird.y - y_c, self.bird.x - x_c)
+        
+        #d = x_c - self.bird.x
+        #theta = y_c - self.bird.y
+        
+        state = np.array([y, d, theta])
+        
+        return state
+    
     def scroll(self):
         """Scroll the environment of 1 pixel to the left.
         Update the environment accordingly.
