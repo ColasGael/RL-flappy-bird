@@ -162,29 +162,39 @@ class Environment:
         """Return the state of the Bird.
         The state of the bird is composed of:
             - 'y': the y-coordinate of the Bird center ;
+            - 'dx': the x-distance between the Bird and the end of the next pipe's opening ; 
+            - 'dy': the y-distance between the Bird and the end of the next pipe's opening. 
+
+        OLD:
             - 'd': the distance between the Bird Center and center of the next pipe's opening ;
             - 'theta': the angle between the Bird Center and center of the next pipe's opening.
             
         Return:
-            'state' (np.array, [y, d, theta]): the state of the Bird)
+            'state' (np.array, [y, dx, dy]): the state of the Bird)
+            
+        Remarks:
+            The next pipe is the first pipe the bird has not crossed.
         """
         if self.bird is None:
             return None
             
+        # current state
+        x = self.bird.x
+        y = self.bird.y
+            
         # coordinates of the center of the next pipe's opening
-        next_pipe = list(filter(lambda pipe: pipe[0] + self.args.pipe_width//2 >= self.bird.x, self.pipes))[0]
-        x_c = next_pipe[0] + self.args.pipe_width//2
+        next_pipe = list(filter(lambda pipe: pipe[0] + self.args.pipe_width >= self.bird.x - self.args.bird_dims[1], self.pipes))[0]
+        x_c = next_pipe[0] + self.args.pipe_width
         y_c = -next_pipe[1] + self.args.window_size[0] - self.args.ground_height - self.args.pipe_dist[1]//2
         
-        # current state
-        y = self.bird.y
-        d = np.sqrt((x_c - self.bird.x)**2 + (y_c - self.bird.y)**2)
-        theta = np.arctan2(self.bird.y - y_c, self.bird.x - x_c)
-        
-        #d = x_c - self.bird.x
-        #theta = y_c - self.bird.y
-        
-        state = np.array([y, d, theta])
+        # OLD version
+        #d = np.sqrt((x_c - self.bird.x)**2 + (y_c - self.bird.y)**2)
+        #theta = np.arctan2(y_c - self.bird.y, x_c - self.bird.x)
+        #state = np.array([y, d, theta])
+
+        dx = x_c - x
+        dy = y_c - y
+        state = np.array([y, dx, dy])
         
         return state
     

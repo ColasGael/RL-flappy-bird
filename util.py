@@ -42,29 +42,73 @@ def green_screen(im_array):
     
     return mask
     
-def display_info(coord, score, commands_filename, ax):
+def display_info(score, highscore, coord=(0, 0), commands_filename=None, text_handle=None):
     """Display the commands and the current score
     
     Args:
         'coord' (tuple, (y, x)): pixel coordinates of the text box's bottom-left 
         'score' (int): current score
+        'highscore' (tuple of int, (human, AI)): the best score achieved by a human and an AI
         'commands_filename' (str): filename of the text file listing the commands used in the game
-        'ax' (Axis): axis handle to use to display the text
+        'text_handle' (Text Handle, default=None): text handle
         
     Return:
         'text_handle' (Text Handle): text handle
-    """
-    
-    score_text = "SCORE: {}\n".format(score)
-    
-    with open(commands_filename, "r") as commands_file:
-        commands_text = commands_file.read()
         
-    ax.text(coord[1] + 50, coord[0], commands_text, fontsize=14)
-    text_handle = ax.text(coord[1] + 50, 50, score_text, fontsize=20)
+    Remarks:
+        If the 'text_handle' is given, then we update the text instead of replotting it.
+    """
+    score_text = "SCORE: {}\n\n Highscore Human: {}\n Highscore AI: {}\n".format(score, *highscore)
+    
+    # check if update the score
+    if text_handle is not None:
+        text_handle.set_text(score_text)
+    
+    # otherwise, we plot the text for the first time
+    else:        
+        with open(commands_filename, "r") as commands_file:
+            commands_text = commands_file.read()
+            
+        plt.text(coord[1] + 20, coord[0], commands_text, fontsize=14)
+        text_handle = plt.text(coord[1] + 20, coord[0] - 200, score_text, fontsize=20)
     
     return text_handle
-   
+    
+def load_highscore(highscore_filename):
+    """Load the highscore stored in a text file.
+    
+    Args:
+        'highscore_filename' (str): filename of the highscore text file
+    
+    Return:
+        'highscore' (tuple of int, (human, AI)): the best score achieved by a human and an AI
+    """
+    human_score, ai_score = -1, -1
+    
+    with open(highscore_filename, "r") as highscore_file:
+        lines = highscore_file.readlines()
+        
+        for line in lines:
+            name, score = line.split(" ")
+            
+            if "human" in name:
+                human_score = int(score)
+            elif "ai" in name:
+                ai_score = int(score)
+    
+    highscore = [human_score, ai_score]
+    
+    return highscore
 
+def update_score(highscore, highscore_filename):
+    """Update the highscore text file with the new highscore.
+    
+    Args:
+        'highscore' (tuple of int, (human, AI)): the best score achieved by a human and an AI
+        'highscore_filename' (str): filename of the highscore text file
+    """
+    with open(highscore_filename, "w") as highscore_file:
+        highscore_file.write("human {}\nai {}".format(highscore[0], highscore[1]))
+    
 
 

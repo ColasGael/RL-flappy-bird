@@ -2,4 +2,6 @@ Commands:
     LEFT-CLICK : start
     SPACE : jump
     N : reset game
+    M : mute display
+    S : save AI data
     Q : quit

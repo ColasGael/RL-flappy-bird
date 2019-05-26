@@ -23,7 +23,10 @@ def get_game_args():
                         type=str,
                         default="commands.txt",
                         help="Filename of the text file listing the commands used in the game.")
-    
+    parser.add_argument('--highscore_filename',
+                        type=str,
+                        default="highscore.txt",
+                        help="Filename of the text file where the highscores are stored.")
     parser.add_argument('--agent',
                         type=str,
                         default="human",
