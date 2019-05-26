@@ -5,6 +5,7 @@ Authors:
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 import cv2
 
 
@@ -41,7 +42,29 @@ def green_screen(im_array):
     
     return mask
     
+def display_score_commands(coord, score, commands_filename, ax):
+    """Display the commands and the current score
     
+    Args:
+        'coord' (tuple, (y, x)): pixel coordinates of the text box's bottom-left 
+        'score' (int): current score
+        'commands_filename' (str): filename of the text file listing the commands used in the game
+        'ax' (Axis): axis handle to use to display the text
+        
+    Return:
+        'text_handle' (Text Handle): text handle
+    """
+    
+    score_text = "SCORE: {}\n".format(score)
+    
+    with open(commands_filename, "r") as commands_file:
+        commands_text = commands_file.read()
+        
+    ax.text(coord[1] + 50, coord[0], commands_text, fontsize=14)
+    text_handle = ax.text(coord[1] + 50, 50, score_text, fontsize=20)
+    
+    return text_handle
+   
 
 
 

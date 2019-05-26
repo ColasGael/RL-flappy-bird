@@ -19,6 +19,11 @@ def get_game_args():
     # add arguments needed to display the environment
     add_sprites_args(parser)
     
+    parser.add_argument('--commands_filename',
+                        type=str,
+                        default="commands.txt",
+                        help="Filename of the text file listing the commands used in the game.")
+    
     parser.add_argument('--agent',
                         type=str,
                         default="human",
@@ -97,7 +102,7 @@ def add_env_args(parser):
                         help="Width of a pipe in pixels.")
     parser.add_argument('--pipe_min_height',
                         type=int,
-                        default=10,
+                        default=20, #10,
                         help="Minimum height of a pipe in pixels.")
     parser.add_argument('--pipe_dist',
                         type=tuple,

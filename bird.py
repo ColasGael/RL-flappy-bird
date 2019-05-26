@@ -18,7 +18,8 @@ class Bird:
         'x' (int): row pixel coordinate of the Bird center in the environment
         'y' (int): column pixel coordinate of the Bird center in the environment
         't' (int): number of time steps since the last jump
-        
+        'score' (int): current score
+
     Remark:
         'x' is fixed, only the environment moves by scrolling.
     """
