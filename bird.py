@@ -50,9 +50,3 @@ class Bird:
         self.y -= max(self.t*self.args.v0 -0.5*self.t**2*self.args.a0 + (self.t < 5)*self.args.dy, -self.args.v_max)
         # convert to int
         self.y = max(int(self.y), 0)
-        
-
-        
-
-    
-

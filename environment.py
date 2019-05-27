@@ -254,9 +254,3 @@ if __name__ == '__main__':
     
     # save the current environment to a JPG image
     #cv2.imwrite('test.jpg', environment.map)
-
-
-    
-    
- 
-
