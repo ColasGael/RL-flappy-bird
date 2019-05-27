@@ -22,6 +22,11 @@ def jpg2numpy(im_path, im_dims):
     """
     # read image into numpy array
     im_array = cv2.imread(im_path)
+    
+    # check that an image has been loaded
+    if im_array is None:
+        raise FileNotFoundError("The image {} does not exist.".format(im_path))
+    
     # resize to match dimension requirements: OpenCV convention (cols, rows)
     im_array = cv2.resize(im_array, dsize=(im_dims[1], im_dims[0]), interpolation=cv2.INTER_CUBIC)
     # convert from OpenCV BGR to RGB pixel convention
@@ -39,7 +44,7 @@ def green_screen(im_array):
         'mask' (np.array, shape=(im_dims), dtype=bool): boolean mask indicating the non-green screen pixels.
     """
     
-    mask = (im_array[:,:,1] < 100) | (im_array[:,:,0] > im_array[:,:,1]) | (im_array[:,:,2] > im_array[:,:,1]) 
+    mask = (im_array[:,:,1] < 100) | (im_array[:,:,0] >= im_array[:,:,1]) | (im_array[:,:,2] >= im_array[:,:,1]) 
     
     return mask
     
@@ -86,16 +91,22 @@ def load_highscore(highscore_filename):
     """
     human_score, ai_score = -1, -1
     
-    with open(highscore_filename, "r") as highscore_file:
-        lines = highscore_file.readlines()
+    # try opening the highscore file
+    try:
+        highscore_file = open(highscore_filename, "r")
         
-        for line in lines:
+        # if the file exists, read the score from it
+        for line in highscore_file.readlines():
             name, score = line.split(" ")
             
             if "human" in name:
                 human_score = int(score)
             elif "ai" in name:
                 ai_score = int(score)
+        
+    except FileNotFoundError:
+        print("No highscore file '{}' found. Creating a new one...".format(highscore_filename))
+        open(highscore_filename, "w")
     
     highscore = [human_score, ai_score]
     

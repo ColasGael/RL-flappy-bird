@@ -35,6 +35,15 @@ def get_game_args():
                         choices=("human", "ai"),
                         help="Whether to use a human or an AI agent.")
     
+    parser.add_argument('--n_frames_human',
+                        type=int,
+                        default=4,
+                        help="How often to display a new frame when a human is playing: 1 frame every 'n_frames_human'.")
+    parser.add_argument('--n_frames_ai',
+                        type=int,
+                        default=10,
+                        help="How often to display a new frame when an AI is playing: 1 frame every 'n_frames_ai'.")
+                        
     args = parser.parse_args()
 
     return args
@@ -43,8 +52,9 @@ def get_game_args():
 def add_RL_args(parser):
     """Add arguments relative to the Reinforcement Learning algorithm."""
     parser.add_argument('--n_states',
-                        type=tuple,
-                        default=(10, 5, 15),
+                        type=int,
+                        default=(15, 5, 15),
+                        nargs=3,
                         help="Discretization = number of points in each axis of the state.")
     parser.add_argument('--gamma',
                         type=float,
@@ -117,8 +127,9 @@ def add_env_args(parser):
     # Objects' dimensions in pixels
         # window
     parser.add_argument('--window_size',
-                        type=tuple,
+                        type=int,
                         default=(370, 240),
+                        nargs=2,
                         help="Dimensions (H, W) of the game window in pixels.")
     parser.add_argument('--padding',
                         type=int,
@@ -138,20 +149,24 @@ def add_env_args(parser):
                         default=40, #20,
                         help="Minimum height of a pipe in pixels.")
     parser.add_argument('--pipe_dist',
-                        type=tuple,
+                        type=int,
                         default=(90, 80),
+                        nargs=2,
                         help="Distance between pipes (horizontal, vertical) in pixels.")
         # bird
     parser.add_argument('--bird_dims',
-                        type=tuple,
-                        default=(20, 20),
+                        type=int,
+                        default=(25, 25), #(20, 20),
+                        nargs=2,
                         help="Dimensions (H, W) of the bird in pixels.") 
     parser.add_argument('--bird_pos',
-                        type=tuple,
+                        type=int,
                         default=(80, 150),
+                        nargs=2,
                         help="Initial position (x, y) of the bird in pixels.") 
         # explosion
     parser.add_argument('--explosion_dims',
-                        type=tuple,
+                        type=int,
                         default=(50, 50),
+                        nargs=2,
                         help="Dimensions (H, W) of the explosion in pixels.") 

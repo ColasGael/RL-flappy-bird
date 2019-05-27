@@ -153,8 +153,8 @@ class Game:
             # feed the transition information to the agent
             self.agent.set_transition(new_state, isScoreUpdated, isFail) 
             
-        # only display 1 every 2 time frames for fluidity
-        if ((self.t % 2 == 0) or self.fail()) and not self.muteDisplay:
+        # only display 1 frame every 'n_frames' frames for fluidity
+        if not self.muteDisplay and (self.fail() or (self.isHuman and (self.t % self.args.n_frames_human == 0)) or (not self.isHuman and (self.t % self.args.n_frames_ai == 0))): 
             # change the displayed image to account for changes
             self.im.set_data(self.env.map)
             # update the image without pausing
