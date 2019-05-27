@@ -18,6 +18,8 @@ def get_game_args():
     add_dynamics_args(parser)
     # add arguments needed to display the environment
     add_sprites_args(parser)
+    # add arguments relative to the RL algorithm     
+    add_RL_args(parser)
     
     parser.add_argument('--commands_filename',
                         type=str,
@@ -38,6 +40,34 @@ def get_game_args():
     return args
 
 
+def add_RL_args(parser):
+    """Add arguments relative to the Reinforcement Learning algorithm."""
+    parser.add_argument('--n_states',
+                        type=tuple,
+                        default=(10, 5, 15),
+                        help="Discretization = number of points in each axis of the state.")
+    parser.add_argument('--gamma',
+                        type=float,
+                        default=0.995,
+                        help="Discount factor.")
+    parser.add_argument('--eps',
+                        type=float,
+                        default=1.,
+                        help="Epsilon-greedy coefficient.")
+    parser.add_argument('--tolerance',
+                        type=float,
+                        default=0.01,
+                        help="Convergence criterium for Value Iteration.")
+    parser.add_argument('--save_filename',
+                        type=str,
+                        default='ai_save.json',
+                        help="Name of the JSON file saving the agent parameters.")
+    parser.add_argument('--load_save',
+                        type=bool,
+                        default=False,
+                        help="Whether to load the agent parameters from the saved file.")
+                        
+                        
 def add_sprites_args(parser):
     """Add arguments (sprites) needed to display the environment."""
     parser.add_argument('--bg_sprite',
@@ -105,7 +135,7 @@ def add_env_args(parser):
                         help="Width of a pipe in pixels.")
     parser.add_argument('--pipe_min_height',
                         type=int,
-                        default=20, #10,
+                        default=40, #20,
                         help="Minimum height of a pipe in pixels.")
     parser.add_argument('--pipe_dist',
                         type=tuple,

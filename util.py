@@ -7,6 +7,7 @@ Authors:
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
+import ujson as json
 
 
 def jpg2numpy(im_path, im_dims):
@@ -109,6 +110,37 @@ def update_score(highscore, highscore_filename):
     """
     with open(highscore_filename, "w") as highscore_file:
         highscore_file.write("human {}\nai {}".format(highscore[0], highscore[1]))
+        
+def save_agent(agent, out_filename):
+    """Save the agent parameters to a JSON file.
     
-
-
+    Args:
+        'agent' (AIAgent): AI agent to save
+        'out_filename' (str): name of the output file
+    """
+    with open(out_filename, "w") as out_file:
+        json.dump(agent.mdp_data, out_file)
+    
+    print("The AI agent has been saved to: {}".format(out_filename))
+    
+def load_agent(agent, in_filename):
+    """Load the saved agent parameters from a JSON file.
+    
+    Args:
+        'agent' (AIAgent): AI agent to load the parameters into
+        'in_filename' (str): name of the input file
+    """
+    with open(in_filename, "r") as in_file:
+        mdp_data = json.load(in_file)
+    
+    # convert all the list to np.arrays
+    agent.mdp_data = {
+        'num_states': mdp_data['num_states'],
+        'state_discretization': [np.array(states_list) for states_list in mdp_data['state_discretization']],
+        'transition_counts': np.array(mdp_data['transition_counts']),
+        'transition_probs': np.array(mdp_data['transition_probs']),
+        'reward_counts': np.array(mdp_data['reward_counts']),
+        'reward': np.array(mdp_data['reward']),
+        'value': np.array(mdp_data['value'])
+    }
+    print("The AI agent has been loaded from: {}".format(in_filename))

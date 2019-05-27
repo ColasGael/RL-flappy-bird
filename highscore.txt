@@ -1,2 +1,2 @@
 human 9
-ai 25
+ai 51

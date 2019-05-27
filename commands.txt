@@ -3,5 +3,5 @@ Commands:
     SPACE : jump
     N : reset game
     M : mute display
-    S : save AI data
+    Z : save AI data
     Q : quit

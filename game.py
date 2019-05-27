@@ -53,6 +53,10 @@ class Game:
         if not self.isHuman:
             state = self.env.get_state()
             self.agent = AIAgent(args, state)
+            # load saved parameters
+            if self.args.load_save:
+                load_agent(self.agent, self.args.save_filename)
+            
         self.muteDisplay = False
 
             
@@ -147,7 +151,7 @@ class Game:
             # get the new_state
             new_state = self.env.get_state()
             # feed the transition information to the agent
-            self.agent.set_transition(new_state, self.hasJumped, isScoreUpdated, isFail) 
+            self.agent.set_transition(new_state, isScoreUpdated, isFail) 
             
         # only display 1 every 2 time frames for fluidity
         if ((self.t % 2 == 0) or self.fail()) and not self.muteDisplay:
@@ -168,7 +172,7 @@ class Game:
             SPACE : jump
             N : reset game
             M : mute display
-            S : save AI data
+            Z : save AI data
             Q : quit
         """ 
         # get useful handles
@@ -206,8 +210,13 @@ class Game:
             # quit the game if Q is pressed
             elif event.key == "q":
                 plt.close()
+            # mute the display if M is pressed
             elif event.key == "m":
                 self.muteDisplay = not self.muteDisplay
+            # save the AI agent parameters if S is pressed
+            elif event.key == "z":
+                if not self.isHuman:
+                    save_agent(self.agent, self.args.save_filename)
             
         # right click to start the game
         cid_start = fig.canvas.mpl_connect('button_press_event', start_onclick)

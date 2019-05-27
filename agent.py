@@ -2,6 +2,7 @@
 
 Authors:
     Gael Colas
+    Sanyam Mehra (CS229 teaching staff): HW4 solutions
 """
 
 import numpy as np
@@ -10,115 +11,166 @@ from keyboard_event_generator import PressString, LeftClick
 
 
 class AIAgent:
+    """AI agent controlling the bird.
+    The AI agent is trained by Reinforcement Learning.
+    Every time the agent finishes a simulation, he builds an approximate Markov Decision Process based on the transition and the reward observed.
+    At the end of the simulation, he computes the approximated value function through Value Iteration.
+    This value function is then used to choose the best actions of the next simulation.
+    
+    Attributes:
+        'args' (ArgumentParser): parser gethering all the Game parameters
+        'n_states' (tuple of int, (n_y, n_dx, n_dy)): discretization = number of points in each axis of the state
+        'gamma' (float): discount factor
+        'eps' (float): epsilon-greedy coefficient
+        'mdp' (MDP): approximate MDP current parameters
+        'n_sim' (int): number of simulations
+        
+        'state' (np.array, [y, dx, dy]): the current state of the Bird
+        'action' (int): the current action 
+                action = 1 if jumping, 0 otherwise
+    """
     
     def __init__(self, args, state):
         super(AIAgent).__init__()
         
+        # RL parameters
         self.args = args
-        self.n_y = 5
-        self.n_dx = 10
-        self.n_dy = 15
-
-        self.gamma = 0.995
-                        
-        self.state = state
-        
-        self.action = 0
-        
+        self.n_states = args.n_states
+        self.gamma = args.gamma
+        self.eps = 1.
+        self.tolerance = args.tolerance
+        # initialize the approximate MDP parameters
+        self.initialize_mdp_data()
+        # current simulation
         self.n_sim = 1
         
-        self.eps = 1.
-                
-        self.t = 0
-        
-        self.initialize_mdp_data()
+        # current state and action
+        self.state = state
+        self.action = 0
 
-    def get_closest_state_idx(self, state, isFail=False):
-        y_s, dx_s, dy_s = self.mdp_data["state_discretization"]
+    def get_reward(self, isScoreUpdated, isFail):
+        """Reward function.
         
-        i = np.argmin(abs(y_s - state[0]))
-        j = np.argmin(abs(dx_s - state[1]))
-        k = np.argmin(abs(dy_s - state[2]))
-        
-        return isFail*self.n_dx*self.n_dy + j*self.n_dy + k
-        #return isFail*(j*self.n_dy + k + 1)
-
-    def get_reward(self, hasJumped, isScoreUpdated, isFail):
-        
+        Args:
+            'isScoreUpdated' (bool): whether the agent has earned a point at the current state
+            'isFail' (bool): whether the Game has been failed at the current state
+            
+        Return:
+            'reward' (float): reward earned in the current state
+            
+        Remarks:
+            Earning a point: +100
+            Losing the game: -1000
+            Being alive: +1
+        """
         if isScoreUpdated:
             reward = 100
         elif isFail:
             reward = -1000
-        elif hasJumped:
-            reward = 0
         else:
             reward = 1  
         
         return reward
     
-    def set_transition(self, new_state, hasJumped, isScoreUpdated, isFail):
-        reward = self.get_reward(hasJumped, isScoreUpdated, isFail)
-        #self.update_Q(reward, new_state, isFail)
-        #self.update_theta(reward, new_state)
-        self.update_mdp_transition_counts_reward_counts(self.state, self.action, new_state, reward, isFail)
-
-        self.state = new_state
-        
-        if isFail:
-            self.update_mdp_transition_probs_reward()
-            self.update_mdp_value(0.01)
-            PressString("n")
-    
-    def reset(self, state):
-        self.state = state
-        self.n_sim += 1
-        self.eps += 0.01
-        self.t = 0
-
-        LeftClick()
-    
-    def jump(self):
-            self.t = 0
-            PressString(" ")
-    
     def choose_action(self):
+        """Choose the next action with an Epsilon-Greedy exploration strategy.
+        """
+        def jump():
+            """Execute the jumping action.
+            """
+            PressString(" ")
+        
         if np.random.rand() < self.eps:            
             self.action = self.best_action(self.state)
         else:
             self.action = np.random.rand() < 0.01
             
         if self.action == 1:
-            self.jump()
-        else:
-            self.t += 1
-                
-    def initialize_mdp_data(self):
+            jump()
+    
+    def reset(self, state):
+        """Reset the simulation parameters.
         """
-        Return a variable that contains all the parameters/state you need for your MDP.
-        Feel free to use whatever data type is most convient for you (custom classes, tuples, dicts, etc)
-        Assume that no transitions or rewards have been observed.
-        Initialize the value function array to small random values (0 to 0.10, say).
-        Initialize the transition probabilities uniformly (ie, probability of
-            transitioning for state x to state y using action a is exactly
-            1/num_states).
-        Initialize all state rewards to zero.
+        self.n_sim += 1
+
+        # initial state and action
+        self.state = state
+        
+        # make the algorithm more greedy
+        self.eps += 0.01
+        
+        # start a new simulation
+        LeftClick()
+    
+    def set_transition(self, new_state, isScoreUpdated, isFail):
+        """Update the approximate MDP with the given transition.
+        
         Args:
-            num_states: The number of states
-        Returns: The initial MDP parameters
+            'new_state' (np.array, [y, dx, dy]): the new state of the Bird
+            'isScoreUpdated' (bool): whether the agent has earned a point at the last state
+            'isFail' (bool): whether the Game has been failed at the last state
+        """
+        # get the previous state reward
+        reward = self.get_reward(isScoreUpdated, isFail)
+        # store the given transition
+        self.update_mdp_counts(self.state, self.action, new_state, reward, isFail)
+        
+        # update the current state
+        self.state = new_state
+        
+        # end of the current simulation 
+        if isFail:
+            # update the approximate MDP with the simulation observations
+            self.update_mdp_parameters()
+            # start a new simulation
+            PressString("n")
+    
+    def get_closest_state_idx(self, state, isFail=False):
+        """Get the index of the closest discretized state.
+        
+        Args:
+            'state' (np.array, [y, dx, dy]): the current state of the Bird
+            'isFail' (bool): whether the Game is failed
+            
+        Return:
+            'ind' (int): index of the closes discretized state
+            
+        Remarks:
+            State 0 is a FAIL state.
+        """
+        # discretized state
+        y_s, dx_s, dy_s = self.mdp_data["state_discretization"]
+        
+        # closest discretized state indices
+        i = np.argmin(abs(y_s - state[0]))
+        j = np.argmin(abs(dx_s - state[1]))
+        k = np.argmin(abs(dy_s - state[2]))
+        
+        return (not isFail)*(j*self.n_states[2] + k + 1)
+
+    def initialize_mdp_data(self):
+        """Save a attributes 'mdp_data' that contains all the parameters defining the approximate MDP.
+        
+        Parameters:
+            'num_states' (int): the number of discretized states.
+                    num_states = n_dx*n_dy + 1
+        
+        Initialization scheme:
+            - Value function array initialized to 0
+            - Transition probability initialized uniformly: p(x'|x,a) = 1/num_states 
+            - State rewards initialized to 0
         """
         
         # state discretization
-        y_s = np.linspace(0, self.args.window_size[0]-self.args.ground_height, self.n_y)
-        dx_s = np.linspace(0, self.args.pipe_dist[0], self.n_dx)
-        dy_s = np.linspace(-(self.args.window_size[0]-self.args.ground_height), self.args.window_size[0]-self.args.ground_height, self.n_dy)
+        num_states = self.n_states[1]*self.n_states[2] + 1
+        y_s = np.linspace(0, self.args.window_size[0]-self.args.ground_height, self.n_states[0])
+        dx_s = np.linspace(0, self.args.pipe_dist[0], self.n_states[1])
+        dy_s = np.linspace(-(self.args.window_size[0]-self.args.ground_height), self.args.window_size[0]-self.args.ground_height, self.n_states[2])
         
         # OLD version of the state
         #self.d_s = np.linspace(0, np.sqrt((self.args.window_size[0]-self.args.ground_height)**2 + self.args.pipe_dist[0]**2), self.n_d)
         #self.theta_s = np.linspace(-np.pi/2, np.pi/2, self.n_theta)
         #num_states = s2*elf.n_d*self.n_theta
-        
-        num_states = 2*self.n_dx*self.n_dy
-        #num_states = self.n_states**2+1
 
         transition_counts = np.zeros((num_states, num_states, 2))
         transition_probs = np.ones((num_states, num_states, 2)) / num_states
@@ -127,145 +179,97 @@ class AIAgent:
         value = np.zeros(num_states)
 
         self.mdp_data = {
+            'num_states': num_states,
             'state_discretization': [y_s, dx_s, dy_s],
             'transition_counts': transition_counts,
             'transition_probs': transition_probs,
             'reward_counts': reward_counts,
             'reward': reward,
-            'value': value,
-            'num_states': num_states,
+            'value': value
         }
-        # *** END CODE HERE ***
 
     def best_action(self, state):
-        """
-        Choose the next action (0 or 1) that is optimal according to your current
-        mdp_data. When there is no optimal action, return a random action.
+        """Choose the next action (0 or 1) that is optimal according to your current 'mdp_data'. 
+        When there is no optimal action, return 0 has "not jumping" is more frequent.
+        
         Args:
-            state: The current state in the MDP
-            mdp_data: The parameters for your MDP. See initialize_mdp_data.
-        Returns:
-            0 or 1 that is optimal according to your current MDP
+            'state' (np.array, [y, dx, dy]): current state of the Bird
+            
+        Return:
+            'action' (int, 0 or 1): optimal action in the current state according to the approximate MDP
         """
-
-        # *** START CODE HERE ***
+        # get the index of the closest discretized state
         s = self.get_closest_state_idx(state)
         
-        score1 = self.mdp_data['transition_probs'][s, :, 0].dot(self.mdp_data['value'])
-        score2 = self.mdp_data['transition_probs'][s, :, 1].dot(self.mdp_data['value'])
+        # value function if taking each action in the current state 
+        score_nojump = self.mdp_data['transition_probs'][s, :, 0].dot(self.mdp_data['value'])
+        score_jump = self.mdp_data['transition_probs'][s, :, 1].dot(self.mdp_data['value'])
 
-        if score1 >= score2:
-            action = 0
-        elif score2 > score1:
-            action = 1
+        # best action in the current state
+        action = (score_jump > score_nojump)*1
 
         return action
-        # *** END CODE HERE ***
 
-    def update_mdp_transition_counts_reward_counts(self, state, action, new_state, reward, isFail):
-        """
-        Update the transition count and reward count information in your mdp_data. 
-        Do not change the other MDP parameters (those get changed later).
-        Record the number of times `state, action, new_state` occurs.
-        Record the rewards for every `new_state`.
-        Record the number of time `new_state` was reached.
-        Args:
-            mdp_data: The parameters of your MDP. See initialize_mdp_data.
-            state: The state that was observed at the start.
-            action: The action you performed.
-            new_state: The state after your action.
-            reward: The reward after your action.
-        Returns:
-            Nothing
-        """
-
-        # *** START CODE HERE ***
+    def update_mdp_counts(self, state, action, new_state, reward, isFail):
+        """Update the transition counts and reward counts based on the given transition.
         
+        Record for all the simulations:
+            - the number of times `state, action, new_state` occurs ;
+            - the rewards accumulated for every `new_state`.
+        
+        Args:
+            'state' (np.array, [y, dx, dy]): previous state of the Bird
+            'action' (int, 0 or 1): last action performed
+            'new_state' (np.array, [y, dx, dy]): new state after performing the action in the previous state
+            'reward' (float): reward observed in the previous state
+        """
+        # get the index of the closest discretized previous and new states
         s = self.get_closest_state_idx(state, False)
         new_s = self.get_closest_state_idx(new_state, isFail)
 
+        # update the transition and the reward counts
         self.mdp_data['transition_counts'][s, new_s, action] += 1
-        self.mdp_data['reward_counts'][s, 0] += reward
-        self.mdp_data['reward_counts'][s, 1] += 1
+        self.mdp_data['reward_counts'][new_s, 0] += reward
+        self.mdp_data['reward_counts'][new_s, 1] += 1
 
-        # *** END CODE HERE ***
+    def update_mdp_parameters(self):
+        """Update the estimated MDP parameters (transition and reward functions) at the end of a simulation.
+        Perform value iteration using the new estimated model for the MDP.
 
-        # This function does not return anything
-        return
-
-    def update_mdp_transition_probs_reward(self):
+        Remarks:
+            Only observed transitions are updated.
+            Only states with observed rewards are updated.
         """
-        Update the estimated transition probabilities and reward values in your MDP.
-        Make sure you account for the case when a state-action pair has never
-        been tried before, or the state has never been visited before. In that
-        case, you must not change that component (and thus keep it at the
-        initialized uniform distribution).
-        
-        Args:
-            mdp_data: The data for your MDP. See initialize_mdp_data.
-        Returns:
-            Nothing
-        """
-
-        # *** START CODE HERE ***
+        # update the transition fucntion
         for a in [0, 1]:
             for s in range(self.mdp_data['num_states']):
                 total_num_transitions = np.sum(self.mdp_data['transition_counts'][s, :, a])
                 if total_num_transitions > 0:
-                    self.mdp_data['transition_probs'][s, :, a] = (
-                        self.mdp_data['transition_counts'][s, :, a] / total_num_transitions
-                    )
+                    self.mdp_data['transition_probs'][s, :, a] = (self.mdp_data['transition_counts'][s, :, a] / total_num_transitions)
 
+        # update the reward function
         for s in range(self.mdp_data['num_states']):
             if self.mdp_data['reward_counts'][s, 1] > 0:
                 self.mdp_data['reward'][s] = self.mdp_data['reward_counts'][s, 0] / self.mdp_data['reward_counts'][s, 1]
 
-        # *** END CODE HERE ***
-
-        # This function does not return anything
-
-    def update_mdp_value(self, tolerance):
-        """
-        Update the estimated values in your MDP.
-        Perform value iteration using the new estimated model for the MDP.
-        The convergence criterion should be based on `TOLERANCE` as described
-        at the top of the file.
-        Return true if it converges within one iteration.
-        
-        Args:
-            mdp_data: The data for your MDP. See initialize_mdp_data.
-            tolerance: The tolerance to use for the convergence criterion.
-            gamma: Your discount factor.
-        Returns:
-            True if the value iteration converged in one iteration
-        """
-
-        # *** START CODE HERE ***
-        
-        iterations = 0
-
+        # update the value function through Value Iteration
         while True:
             new_value = np.zeros(self.mdp_data['num_states'])
 
-            iterations = iterations + 1
             for s in range(self.mdp_data['num_states']):
-                value1 = self.mdp_data['transition_probs'][s, :, 0].dot(self.mdp_data['value'])
-                value2 = self.mdp_data['transition_probs'][s, :, 1].dot(self.mdp_data['value'])
+                value_nojump = self.mdp_data['transition_probs'][s, :, 0].dot(self.mdp_data['value'])
+                value_jump = self.mdp_data['transition_probs'][s, :, 1].dot(self.mdp_data['value'])
 
-                new_value[s] = max(value1, value2)
+                new_value[s] = max(value_nojump, value_jump)
 
             new_value = self.mdp_data['reward'] + self.gamma * new_value
 
-            max_diff = float('-Inf')
+            max_diff = -1
             for s in range(self.mdp_data['num_states']):
                 if abs(new_value[s] - self.mdp_data['value'][s]) > max_diff:
                     max_diff = abs(new_value[s] - self.mdp_data['value'][s])
 
             self.mdp_data['value'] = new_value
 
-            if max_diff < tolerance:
+            if max_diff < self.tolerance:
                 break
-
-        return iterations == 1
-
-        # *** END CODE HERE ***                

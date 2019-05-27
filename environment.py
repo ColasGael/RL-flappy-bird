@@ -170,7 +170,7 @@ class Environment:
             - 'theta': the angle between the Bird Center and center of the next pipe's opening.
             
         Return:
-            'state' (np.array, [y, dx, dy]): the state of the Bird)
+            'state' (np.array, [y, dx, dy]): the state of the Bird
             
         Remarks:
             The next pipe is the first pipe the bird has not crossed.
