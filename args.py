@@ -156,7 +156,7 @@ def add_env_args(parser):
         # bird
     parser.add_argument('--bird_dims',
                         type=int,
-                        default=(25, 25), #(20, 20),
+                        default=(20, 20), #(20, 20),
                         nargs=2,
                         help="Dimensions (H, W) of the bird in pixels.") 
     parser.add_argument('--bird_pos',
