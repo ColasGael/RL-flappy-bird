@@ -172,8 +172,8 @@ class AIAgent:
         #self.theta_s = np.linspace(-np.pi/2, np.pi/2, self.n_theta)
         #num_states = s2*elf.n_d*self.n_theta
 
-        transition_counts = np.zeros((num_states, num_states, 2))
-        transition_probs = np.ones((num_states, num_states, 2)) / num_states
+        transition_counts = np.zeros((num_states, 2, num_states))
+        transition_probs = np.ones((num_states, 2, num_states)) / num_states
         reward_counts = np.zeros((num_states, 2))
         reward = np.zeros(num_states)
         value = np.zeros(num_states)
@@ -202,8 +202,8 @@ class AIAgent:
         s = self.get_closest_state_idx(state)
         
         # value function if taking each action in the current state 
-        score_nojump = self.mdp_data['transition_probs'][s, :, 0].dot(self.mdp_data['value'])
-        score_jump = self.mdp_data['transition_probs'][s, :, 1].dot(self.mdp_data['value'])
+        score_nojump = self.mdp_data['transition_probs'][s, 0, :].dot(self.mdp_data['value'])
+        score_jump = self.mdp_data['transition_probs'][s, 1, :].dot(self.mdp_data['value'])
 
         # best action in the current state
         action = (score_jump > score_nojump)*1
@@ -228,7 +228,7 @@ class AIAgent:
         new_s = self.get_closest_state_idx(new_state, isFail)
 
         # update the transition and the reward counts
-        self.mdp_data['transition_counts'][s, new_s, action] += 1
+        self.mdp_data['transition_counts'][s, action, new_s] += 1
         self.mdp_data['reward_counts'][new_s, 0] += reward
         self.mdp_data['reward_counts'][new_s, 1] += 1
 
@@ -240,36 +240,30 @@ class AIAgent:
             Only observed transitions are updated.
             Only states with observed rewards are updated.
         """
-        # update the transition fucntion
-        for a in [0, 1]:
-            for s in range(self.mdp_data['num_states']):
-                total_num_transitions = np.sum(self.mdp_data['transition_counts'][s, :, a])
-                if total_num_transitions > 0:
-                    self.mdp_data['transition_probs'][s, :, a] = (self.mdp_data['transition_counts'][s, :, a] / total_num_transitions)
+        temp = self.mdp_data['transition_probs'].copy()
+        # update the transition function
+        total_num_transitions = np.sum(self.mdp_data['transition_counts'], axis=-1)
+        visited_state_action_pairs = total_num_transitions > 0
+        self.mdp_data['transition_probs'][visited_state_action_pairs] = self.mdp_data['transition_counts'][visited_state_action_pairs] / total_num_transitions[visited_state_action_pairs, np.newaxis]
 
         # update the reward function
-        for s in range(self.mdp_data['num_states']):
-            if self.mdp_data['reward_counts'][s, 1] > 0:
-                self.mdp_data['reward'][s] = self.mdp_data['reward_counts'][s, 0] / self.mdp_data['reward_counts'][s, 1]
+        visited_states = self.mdp_data['reward_counts'][:, 1] > 0
+        self.mdp_data['reward'][visited_states] = self.mdp_data['reward_counts'][visited_states, 0] / self.mdp_data['reward_counts'][visited_states, 1]
 
         # update the value function through Value Iteration
-        while True:
-            new_value = np.zeros(self.mdp_data['num_states'])
+        while True:           
+            # Q(_,a) for the different actions
+            value_nojump = np.dot(self.mdp_data['transition_probs'][:,0,:], self.mdp_data['value'])
+            value_jump = np.dot(self.mdp_data['transition_probs'][:,1,:], self.mdp_data['value'])
 
-            for s in range(self.mdp_data['num_states']):
-                value_nojump = self.mdp_data['transition_probs'][s, :, 0].dot(self.mdp_data['value'])
-                value_jump = self.mdp_data['transition_probs'][s, :, 1].dot(self.mdp_data['value'])
-
-                new_value[s] = max(value_nojump, value_jump)
-
-            new_value = self.mdp_data['reward'] + self.gamma * new_value
-
-            max_diff = -1
-            for s in range(self.mdp_data['num_states']):
-                if abs(new_value[s] - self.mdp_data['value'][s]) > max_diff:
-                    max_diff = abs(new_value[s] - self.mdp_data['value'][s])
+            # Bellman update
+            new_value = self.mdp_data['reward'] + self.gamma * np.maximum(value_nojump, value_jump)
+            
+            # difference with previous value function
+            max_diff = np.max(np.abs(new_value - self.mdp_data['value']))
 
             self.mdp_data['value'] = new_value
-
+            
+            # check for convergence
             if max_diff < self.tolerance:
                 break
